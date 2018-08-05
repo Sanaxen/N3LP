@@ -28,11 +28,26 @@ inline void ActFunc::tanh(VecD& x){
   x = x.array().tanh();
 }
 #else
-inline void ActFunc::tanh(MatD& x){
-  x = x.unaryExpr(std::ptr_fun(::tanh));
+//inline void ActFunc::tanh(MatD& x){
+//  x = x.unaryExpr(std::ptr_fun(::tanh));
+//}
+//inline void ActFunc::tanh(VecD& x){
+//  x = x.unaryExpr(std::ptr_fun(::tanh));
+//}
+inline void ActFunc::tanh(MatD& x) {
+	//x = x.array().tanh();
+	for (int i = 0; i < x.size(); i++)
+	{
+		x(i) = ::tanh((double)x(i));
+	}
+
 }
-inline void ActFunc::tanh(VecD& x){
-  x = x.unaryExpr(std::ptr_fun(::tanh));
+inline void ActFunc::tanh(VecD& x) {
+	//x = x.array().tanh();
+	for (int i = 0; i < x.size(); i++)
+	{
+		x(i) = ::tanh((double)x(i));
+	}
 }
 #endif
 

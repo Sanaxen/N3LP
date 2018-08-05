@@ -5,6 +5,26 @@
 #include "SoftMax.hpp"
 #include "BlackOut.hpp"
 
+inline void wakati(char* in, char* out)
+{
+	char command[256];
+	sprintf(command, "cmd.exe /c .\\corpus\\wakati.bat ./corpus/%s ./corpus/%s", in, out);
+	system(command);
+}
+inline void wakati(std::string& line)
+{
+	FILE* fp = fopen("./corpus/tmp.txt", "w");
+	fprintf(fp, "%s\n", line.c_str());
+	fclose(fp);
+
+	wakati("tmp.txt", "tmp_out.txt");
+	fp = fopen("./corpus/tmp_out.txt", "r");
+	char buf[1024];
+	fgets(buf, 1024, fp);
+	line = std::string(buf);
+	fclose(fp);
+}
+
 class EncDec{
 public:
   class Data;
@@ -33,7 +53,7 @@ public:
   std::vector<std::vector<LSTM::State*> > encStateDev, decStateDev;
 
   void encode(const std::vector<int>& src, std::vector<LSTM::State*>& encState);
-  void translate(const std::vector<int>& src, const int beam = 1, const int maxLength = 100, const int showNum = 1);
+  void translate(std::vector<std::string>& output_list, const std::vector<int>& src, const int beam = 1, const int maxLength = 100, const int showNum = 1);
   bool translate(std::vector<int>& output, const std::vector<int>& src, const int beam = 1, const int maxLength = 100);
   Real calcLoss(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState);
   Real calcPerplexity(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState);

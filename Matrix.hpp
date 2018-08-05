@@ -1,6 +1,7 @@
 #pragma once
 
-#include <Eigen/Core>
+#include "Eigen/Core"
+#define M_PI       3.14159265358979323846   // pi
 
 #ifdef USE_FLOAT
 typedef float Real;

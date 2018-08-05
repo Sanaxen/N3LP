@@ -26,3 +26,5 @@
 *.exe
 *.out
 *.app
+ActFunc.hpp.bak
+*.bak
