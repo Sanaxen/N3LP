@@ -1,0 +1,1 @@
+"C:\Program Files (x86)\MeCab\bin\mecab.exe" -Owakati "%1" > "%2"
