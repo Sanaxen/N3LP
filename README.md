@@ -1,6 +1,6 @@
 # N3LP for Windows
 ---
-#Requirement
+# Requirement
 * Eigen, a template libary for linear algebra (<http://eigen.tuxfamily.org/index.php?title=Main_Page>)
 * MeCab: Yet Another Part-of-Speech and Morphological Analyzer (<http://taku910.github.io/mecab/>)
 ---
