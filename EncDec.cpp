@@ -7,6 +7,12 @@
 #include <sys/timeb.h>
 #include <omp.h>
 
+#define USE_TEXT_COLOR
+#ifdef USE_TEXT_COLOR
+
+#include "util/text_color.hpp"
+#endif
+
 EncDec::EncDec(Vocabulary& sourceVoc_, Vocabulary& targetVoc_, std::vector<EncDec::Data*>& trainData_, std::vector<EncDec::Data*>& devData_, const int inputDim, const int hiddenDim, const bool useBlackout_) :
   useBlackout(useBlackout_), sourceVoc(sourceVoc_), targetVoc(targetVoc_), trainData(trainData_), devData(devData_)
 {
@@ -151,22 +157,53 @@ void EncDec::translate(std::vector<std::string>& output_list, const std::vector<
     return;
   }
 
-	for (auto it = src.begin(); it != src.end(); ++it) {
-    std::cout << this->sourceVoc.tokenList[*it]->str << " ";
-  }
+	//for (auto it = src.begin(); it != src.end(); ++it) {
+	//	std::cout << this->sourceVoc.tokenList[*it]->str << " ";
+	//}
   std::cout << std::endl;
 
 	output_list.clear();
 	for (int i = 0; i < showNum; ++i) {
-		std::cout << i + 1 << " (" << candidate[i].score << "): ";
+		//std::cout << i + 1 << " (" << candidate[i].score << "): ";
 
+		char tmp[1024];
+		sprintf(tmp, "%.2f", candidate[i].score);
 		std::string s = "";
+		s += tmp;
+		s += "::";
 		for (auto it = candidate[i].tgt.begin(); it != candidate[i].tgt.end(); ++it) {
-      std::cout << this->targetVoc.tokenList[*it]->str << " ";
+			//std::cout << this->targetVoc.tokenList[*it]->str << " ";
 			s += this->targetVoc.tokenList[*it]->str;
     }
+		{
+			std::string r = "\\n";
+			std::string p = " \n";
+			std::string::size_type  Pos(s.find(r));
+
+			while (Pos != std::string::npos)
+			{
+				s.replace(Pos, r.length(), p);
+				Pos = s.find(r, Pos + p.length());
+			}
+		}
+
 		output_list.push_back(s);
-    std::cout << std::endl;
+		//std::cout << std::endl;
+	}
+#ifdef USE_TEXT_COLOR
+	textColor console;
+#endif
+
+	if (candidate[0].score < -0.1)
+	{
+#ifdef USE_TEXT_COLOR
+		console.reset();
+		console.color(FOREGROUND_RED | FOREGROUND_INTENSITY);
+		console.printf("申し訳ありません。ご質問に答えるための知識がありません\n質問文を少し変えて見て下さい\n\n");
+		console.reset();
+#else
+		printf("申し訳ありません。ご質問に答えるための知識がありません\n質問文を少し変えて見て下さい\n\n");
+#endif
   }
 
 	for (auto it = stateList.begin(); it != stateList.end(); ++it) {
@@ -423,7 +460,7 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
 		for (int i = 0; i < numThreads; ++i) {
       args.push_back(new EncDec::ThreadArg(*this));
 
-			for (int j = 0; j < 200; ++j) {
+			for (int j = 0; j < 300; ++j) {
 	args[i]->encState.push_back(new LSTM::State);
 	args[i]->decState.push_back(new LSTM::State);
       }
@@ -588,7 +625,7 @@ void EncDec::demo(const std::string& srcTrain, const std::string& tgtTrain, cons
   const int inputDim = 200;
   const int hiddenDim = 200;
   const int miniBatchSize = 1;
-  const int numThread = 1;
+	const int numThread = 4;
   const bool useBlackout = true;
   EncDec encdec(sourceVoc, targetVoc, trainData, devData, inputDim, hiddenDim, useBlackout);
   auto test = trainData[0]->src;
@@ -598,7 +635,14 @@ void EncDec::demo(const std::string& srcTrain, const std::string& tgtTrain, cons
   std::cout << "Source voc size: " << sourceVoc.tokenIndex.size() << std::endl;
   std::cout << "Target voc size: " << targetVoc.tokenIndex.size() << std::endl;
   
-	for (int i = 0; i < 300; ++i) {
+	int itr_max = 1000;
+	FILE* fp = fopen("model/model.bin", "r");
+	if (fp)
+	{
+		fclose(fp);
+		itr_max = -1;
+	}
+	for (int i = 0; i < itr_max; ++i) {
 		if (i + 1 >= 6) {
       //learningRate *= 0.5;
     }
@@ -606,19 +650,40 @@ void EncDec::demo(const std::string& srcTrain, const std::string& tgtTrain, cons
 		std::vector<std::string> dmy;
 		std::cout << "\nEpoch " << i + 1 << std::endl;
     encdec.trainOpenMP(learningRate, miniBatchSize, numThread);
-    std::cout << "### Greedy ###" << std::endl;
+		//std::cout << "### Greedy ###" << std::endl;
 		encdec.translate(dmy, test, 1, 100, 1);
-    std::cout << "### Beam search ###" << std::endl;
+		//std::cout << "### Beam search ###" << std::endl;
 		encdec.translate(dmy, test, 20, 100, 5);
 
+		if (i % 100 == 0)
+		{
+			std::ostringstream oss;
+			oss << "model/model_tmp.bin";
+			encdec.save(oss.str());
+		}
+	}
+	if (itr_max >= 0)
+	{
     std::ostringstream oss;
-		oss << "model." << i + 1 << "itr.bin";
-    //encdec.save(oss.str());
+		oss << "model/model.bin";
+		encdec.save(oss.str());
+	}
+	else
+	{
+		std::ostringstream oss;
+		oss << "model/model.bin";
+		encdec.load(oss.str());
   }
 
   //intereactive translation
   std::cout << "Interactive translation" << std::endl;
 
+#ifdef USE_TEXT_COLOR
+	textColor console;
+	console.color( FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+#endif
+
+	std::cout << ">";
 	for (std::string line; std::getline(std::cin, line); ) {
 		if (line == "") {
       continue;
@@ -639,17 +704,41 @@ void EncDec::demo(const std::string& srcTrain, const std::string& tgtTrain, cons
 
 		std::vector<std::string> output_list;
 
-    std::cout << "### Greedy ###" << std::endl;
+		//std::cout << "### Greedy ###" << std::endl;
 		encdec.translate(output_list, tmp.src, 1, 100, 1);
-		printf("%s\n", output_list[0]);
+#ifdef USE_TEXT_COLOR
+		console.reset();
+		console.color(FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+		console.printf("%s\n", output_list[0].c_str());
+
+#else
+		printf("%s\n", output_list[0].c_str());
+#endif
 
 		output_list.clear();
-    std::cout << "### Beam search ###" << std::endl;
-		encdec.translate(output_list, tmp.src, 12, 100, 5);
+		//std::cout << "### Beam search ###" << std::endl;
+		encdec.translate(output_list, tmp.src, 20, 100, 5);
 
-		printf("%s\n", output_list[0].c_str());
+#ifdef USE_TEXT_COLOR
+		console.reset();
+		console.color(FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY);
+		console.printf("[chatbot]%s\n", output_list[0].c_str());
+		console.reset();
+#else
+		printf("[chatbot]%s\n", output_list[0].c_str());
+#endif
+		printf("------------------------\n\n");
+		for (int k = 1; k <5; k++)
+		{
+			printf("\t[%d/Answer candidate=>%s\n",k,  output_list[k].c_str());
+		}
+		printf("------------------------\n\n");
+		std::cout << ">";
   }
-  
+#ifdef USE_TEXT_COLOR
+	console.reset();
+	console.color(FOREGROUND_GREEN | FOREGROUND_INTENSITY | BACKGROUND_GREEN | BACKGROUND_INTENSITY);
+#endif
   return;
 
   encdec.load("model.1itr.bin");
